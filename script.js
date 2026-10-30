@@ -1,4 +1,3 @@
-//your JS code here. If required.
 let btn = document.querySelector("#btn");
 let count = document.querySelector("#count");
 let results = document.querySelector("#results");
@@ -9,7 +8,7 @@ let clickTimer;
 // Rate limiter variables
 let queue = [];
 let callCount = 0;
-let windowStart = null;
+let windowStart = Date.now();
 let timer = null;
 
 const API = "https://jsonplaceholder.typicode.com/todos/1";
@@ -19,35 +18,29 @@ function rateLimitedFetch() {
 
     return new Promise((resolve, reject) => {
 
-        // Add request to queue
         queue.push({ resolve, reject });
 
         processQueue();
     });
 }
 
-// Process maximum 5 requests in 10 seconds
+// Process queued requests
 function processQueue() {
 
     let now = Date.now();
 
-    // Check whether 10 seconds have passed
-    if (windowStart === null || now - windowStart >= 10000) {
-
-        if (timer) {
-            clearTimeout(timer);
-            timer = null;
-        }
-
+    // Check if 1 second has passed
+    if (now - windowStart >= 1000) {
         windowStart = now;
         callCount = 0;
     }
 
-    // If 5 requests are already made, wait
+    // Maximum 5 API calls per second
     if (callCount >= 5) {
 
         if (!timer) {
-            let remainingTime = 10000 - (now - windowStart);
+
+            let remainingTime = 1000 - (now - windowStart);
 
             timer = setTimeout(() => {
                 timer = null;
@@ -58,7 +51,7 @@ function processQueue() {
         return;
     }
 
-    // Execute pending requests
+    // Execute requests
     while (queue.length > 0 && callCount < 5) {
 
         let request = queue.shift();
@@ -77,24 +70,32 @@ function processQueue() {
             .catch(error => request.reject(error));
     }
 
-    // If requests are remaining, wait for next window
+    // Process remaining requests after 1 second
     if (queue.length > 0) {
-        let remainingTime = 10000 - (Date.now() - windowStart);
 
-        timer = setTimeout(() => {
-            timer = null;
-            processQueue();
-        }, remainingTime);
+        let remainingTime = Math.max(
+            0,
+            1000 - (Date.now() - windowStart)
+        );
+
+        if (!timer) {
+            timer = setTimeout(() => {
+                timer = null;
+                processQueue();
+            }, remainingTime);
+        }
     }
 }
 
 // Button click event
 btn.addEventListener("click", () => {
 
-    // Update click counter
+    // Increment click count
     clickCount++;
+
     count.textContent = `Clicks: ${clickCount}`;
 
+    // Reset click counter after 10 seconds
     clearTimeout(clickTimer);
 
     clickTimer = setTimeout(() => {
@@ -102,7 +103,7 @@ btn.addEventListener("click", () => {
         count.textContent = "Clicks: 0";
     }, 10000);
 
-    // Make rate-limited API request
+    // Make API request
     rateLimitedFetch()
         .then(data => {
 
@@ -119,7 +120,7 @@ btn.addEventListener("click", () => {
             results.appendChild(div);
         })
         .catch(error => {
-            console.log(error);
+            console.error(error);
         });
 
 });
